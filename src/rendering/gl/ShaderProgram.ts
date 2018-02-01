@@ -24,6 +24,7 @@ class ShaderProgram {
   attrPos: number;
 
   unifView: WebGLUniformLocation;
+  unifScreen: WebGLUniformLocation;
 
   constructor(shaders: Array<Shader>) {
     this.prog = gl.createProgram();
@@ -41,6 +42,7 @@ class ShaderProgram {
 
     // TODO: add other attributes here
     this.unifView   = gl.getUniformLocation(this.prog, "u_View");
+    this.unifScreen = gl.getUniformLocation(this.prog, "u_Screen");
   }
 
   use() {
@@ -51,6 +53,13 @@ class ShaderProgram {
   }
 
   // TODO: add functions to modify uniforms
+
+  setSize(width: number, height: number) {
+    this.use();
+    if (this.unifScreen != -1) {
+      gl.uniform2f(this.unifScreen, width, height);
+    }
+  }
 
   draw(d: Drawable) {
     this.use();

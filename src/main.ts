@@ -66,6 +66,7 @@ function main() {
 
     // TODO: get / calculate relevant uniforms to send to shader here
     // TODO: send uniforms to shader
+    raymarchShader.setSize(canvas.width, canvas.height);
 
     // March!
     raymarchShader.draw(screenQuad);
