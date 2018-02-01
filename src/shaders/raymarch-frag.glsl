@@ -6,10 +6,10 @@ out vec4 out_Col;
 in vec4 fs_Pos;
 
 uniform vec2 u_Screen;
-uniform vec3 u_Target;
+uniform vec3 u_Eye;
 uniform vec3 u_Up;
 uniform mat4 u_View;
-
+uniform float u_Time;
 
 const int MAX_MARCHING_STEPS = 255;
 const float MIN_DIST = 0.0;
@@ -18,10 +18,61 @@ const float EPSILON = 0.0001;
 const vec3 LIGHT = vec3(0.0,2.0,1.0);
 
 /**
+ * Rotation matrix around the Y axis.
+ */
+mat3 rotateY(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(c, 0, s),
+        vec3(0, 1, 0),
+        vec3(-s, 0, c)
+    );
+}
+
+/**
+ * Rotation matrix around the Z axis.
+ */
+mat3 rotateZ(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(c, -s, 0),
+        vec3(s, c, 0),
+        vec3(0, 0, 1)
+    );
+}
+
+
+// translation & rotation
+// vec3 opTx( vec3 p, mat4 m )
+// {
+//     vec3 q = invert(m)*p;
+//     return primitive(q);
+// }
+
+// Intersection
+float opI( float d1, float d2 )
+{
+    return max(d1,d2);
+}
+
+// Subtraction
+float opS( float d1, float d2 )
+{
+    return max(-d1,d2);
+}
+
+/**
  * Signed distance function for a sphere centered at the origin with radius 1.0;
  */
 float sphereSDF(vec3 samplePoint) {
     return length(samplePoint) - 1.0;
+}
+
+float udBox( vec3 p, vec3 b )
+{
+  return length(max(abs(p)-b,0.0));
 }
 
 float sdPlane( vec3 p, vec4 n )
@@ -39,6 +90,49 @@ float opU( float d1, float d2 )
     return min(d1,d2);
 }
 
+
+float sdTorus( vec3 p, vec2 t )
+{
+  vec2 q = vec2(length(p.xz)-t.x,p.y);
+  return length(q)-t.y;
+}
+
+float sdCylinder( vec3 p, vec3 c )
+{
+  return length(p.xz-c.xy)-c.z;
+}
+
+
+float spinnyThing(vec3 samplePoint) {
+	samplePoint = rotateY(u_Time / 20.0) * samplePoint;
+	vec3 cylinderPoint = rotateZ(u_Time / 10.0) * samplePoint;
+
+	// Intersection
+    float sphereBox = opI(sphereSDF(samplePoint), udBox(samplePoint, vec3(0.8)));
+	float cylinder = sdCylinder(cylinderPoint + vec3(1.0,1.0,1.0), vec3(0.3));
+	float cylinder2 = sdCylinder(cylinderPoint + vec3(0.0, 0.0, 1.0), vec3(0.3));
+	float cylinder3 = sdCylinder(cylinderPoint + vec3(1.0, 1.0, -0.5), vec3(0.3));
+
+	// Union
+	float twoCylinder = opU(sdCylinder(cylinderPoint + vec3(0.0, 0.0, -0.5), vec3(0.3)), cylinder3);
+
+	// Subtraction
+	float subtract2 = opS(cylinder2, opS(cylinder, sphereBox));
+	float subtract3 = opS(twoCylinder, subtract2);
+	// float subtract4 = opS(cylinder4, subtract3);
+	return subtract3;
+}
+
+// /**
+// * Repetition, from IQ's blog
+// */
+float opRep( vec3 p, vec3 c )
+{
+    vec3 q = mod(p,c)-0.5*c;
+    return spinnyThing( q );
+}
+
+
 /**
  * Signed distance function describing the scene.
  * 
@@ -47,7 +141,8 @@ float opU( float d1, float d2 )
  * negative indicating inside.
  */
 float sceneSDF(vec3 samplePoint) {
-    return opU(sphereSDF(samplePoint), sdPlane(samplePoint, normalize(vec4(0.0,1.0,0.0,1.0))));
+	return opRep(samplePoint, vec3(3.0, 3.0, 5.0));
+// sdPlane(samplePoint, normalize(vec4(0.0,1.0,0.0,1.0)))
 }
 
 /**
@@ -77,6 +172,18 @@ float shortestDistanceToSurface(vec3 eye, vec3 marchingDirection, float start, f
     return end;
 }
 
+/**
+ * Jamie Wong: http://jamie-wong.com/2016/07/15/ray-marching-signed-distance-functions/#surface-normals-and-lighting
+ * Using the gradient of the SDF, estimate the normal on the surface at point p.
+ */
+vec3 estimateNormal(vec3 p) {
+    return normalize(vec3(
+        sceneSDF(vec3(p.x + EPSILON, p.y, p.z)) - sceneSDF(vec3(p.x - EPSILON, p.y, p.z)),
+        sceneSDF(vec3(p.x, p.y + EPSILON, p.z)) - sceneSDF(vec3(p.x, p.y - EPSILON, p.z)),
+        sceneSDF(vec3(p.x, p.y, p.z  + EPSILON)) - sceneSDF(vec3(p.x, p.y, p.z - EPSILON))
+    ));
+}
+
 void main() {
 	float width = u_Screen.x;
 	float height = u_Screen.y;
@@ -87,26 +194,58 @@ void main() {
 	float sx = fs_Pos.x;
 	float sy = fs_Pos.y;
 
-	// making camera
-	vec3 eye = vec3(0.0, 0.0, 3.0);
-	vec3 ref = vec3(0.0, 0.0, -1.0);
+	// making ray
+	// vec3 eye = vec3(0.0, 0.0, 3.0);
+	// vec3 ref = vec3(0.0, 0.0, -1.0);
+	// float len = length(ref - eye); 
+	// vec3 U = vec3(0.0,1.0,0.0);
+	// vec3 R = cross(ref, U);
+
+///////////////// Using camera
+	vec3 eye = -vec3(u_View[0].w, u_View[1].w, u_View[2].w);
+	vec3 R = normalize(vec3(u_View[0].x, u_View[0].y, u_View[0].z));
+	vec3 U = normalize(vec3(u_View[1].x, u_View[1].y, u_View[1].z));
+	vec3 ref = vec3(u_View[2].x, u_View[2].y, u_View[2].z);
 	float len = length(ref - eye); 
-	vec3 U = vec3(0.0,1.0,0.0);
-	vec3 R = cross(ref, U);
+
+	// vec3 eye = -vec3(u_View[0].w, u_View[1].w, u_View[2].w);
+	// vec3 R = vec3(u_View * vec4(1.0, 0.0, 0.0, 0.0));
+	// vec3 U = vec3(u_View * vec4(0.0, 1.0, 0.0, 0.0));
+	// vec3 ref = vec3(u_View * vec4(0.0, 0.0, 1.0, 0.0));
+	// float len = length(ref-eye);
+
+///////////////////
+	
 	float fov = 45.0;
 	vec3 V = U * len * tan(radians(fov/2.0));
 	vec3 H = R * len * aspect * tan(radians(fov/2.0));
 
 	// Ray direction
-	vec3 dir = normalize(ref + sx * H + sy * V);
+	vec3 dir = normalize(ref + sx * H + sy * V - eye);
 
     float dist = shortestDistanceToSurface(eye, dir, MIN_DIST, MAX_DIST);
+
+	// // checking ray direction
+	// out_Col = abs(vec4(dir, 1.0));
+	// return;
     
     if (dist > MAX_DIST - EPSILON) {
         // Didn't hit anything
-        out_Col = vec4(0.0,0.0,0.0, 1.0);
+		vec3 color1 = vec3(130.0/255.0, 53.0/255.0 ,128.0/255.0);
+		vec3 color2 = vec3(90.0/255.0, 213.0/255.0, 240.0/255.0);
+
+		vec3 color = color1 * cos(u_Time / 20.0) + color2 * sin(u_Time / 20.0);
+		color = normalize(color);
+
+        out_Col = vec4(color, 1.0);
 		return;
     }
-    
-    out_Col = vec4(1.0, 0.0, 0.0, 1.0);
+	vec3 p = eye + dir * dist;
+    vec3 normal = estimateNormal(p);
+	out_Col = vec4(normal, 1.0);
+
+	vec3 eye2 = normalize(u_Eye);
+	// out_Col = vec4(fs_Pos.x,fs_Pos.y, 0.0, 1.0);
+	// testing out time
+    // out_Col = vec4(1.0 * sin(0.006 * u_Time), 0.0, 0.0, 1.0);
 }

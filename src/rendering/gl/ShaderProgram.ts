@@ -23,10 +23,11 @@ class ShaderProgram {
 
   attrPos: number;
 
-  unifView: WebGLUniformLocation;
+  unifView:   WebGLUniformLocation;
   unifScreen: WebGLUniformLocation;
-  unifUp: WebGLUniformLocation;
-  unifTarget: WebGLUniformLocation;
+  unifUp:     WebGLUniformLocation;
+  unifEye: WebGLUniformLocation;
+  unifTime:   WebGLUniformLocation;
   
 
   constructor(shaders: Array<Shader>) {
@@ -47,7 +48,8 @@ class ShaderProgram {
     this.unifView   = gl.getUniformLocation(this.prog, "u_View");
     this.unifScreen = gl.getUniformLocation(this.prog, "u_Screen");
     this.unifUp     = gl.getUniformLocation(this.prog, "u_Up");
-    this.unifTarget = gl.getUniformLocation(this.prog, "u_Target");
+    this.unifEye = gl.getUniformLocation(this.prog, "u_Eye");
+    this.unifTime   = gl.getUniformLocation(this.prog, "u_Time");
   }
 
   use() {
@@ -66,20 +68,29 @@ class ShaderProgram {
     }
   }
 
-  setCamera(up: vec3, target: vec3) {
+  setTime(count: number) {
+    this.use();
+    if (this.unifScreen != - 1) {
+      gl.uniform1f(this.unifTime, count);
+    }
+  }
+
+  setCamera(up: vec3, eye: vec3) {
     this.use();
     if (this.unifUp != - 1) {
       gl.uniform3fv(this.unifUp, up);
     }
-    if (this.unifTarget != -1) {
-      gl.uniform3fv(this.unifTarget, target);
+    if (this.unifEye != -1) {
+      gl.uniform3fv(this.unifEye, eye);
     }
   }
 
   setViewMatrix(view: mat4) {
     this.use();
     if (this.unifView != - 1) {
-      gl.uniformMatrix4fv(this.unifView, false, view);
+      let inverseView : mat4 = mat4.create();
+      mat4.invert(inverseView, view);
+      gl.uniformMatrix4fv(this.unifView, false, inverseView);
     }
   }
 
