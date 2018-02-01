@@ -1,6 +1,8 @@
 #version 300 es
-
 precision highp float;
+
+
+/** Most of this shader is borrowed from IQ's blog**/
 
 out vec4 out_Col;
 in vec4 fs_Pos;
@@ -10,6 +12,7 @@ uniform vec3 u_Eye;
 uniform vec3 u_Up;
 uniform mat4 u_View;
 uniform float u_Time;
+uniform sampler2D u_Texture;
 
 const int MAX_MARCHING_STEPS = 255;
 const float MIN_DIST = 0.0;
@@ -42,14 +45,6 @@ mat3 rotateZ(float theta) {
         vec3(0, 0, 1)
     );
 }
-
-
-// translation & rotation
-// vec3 opTx( vec3 p, mat4 m )
-// {
-//     vec3 q = invert(m)*p;
-//     return primitive(q);
-// }
 
 // Intersection
 float opI( float d1, float d2 )
@@ -90,7 +85,6 @@ float opU( float d1, float d2 )
     return min(d1,d2);
 }
 
-
 float sdTorus( vec3 p, vec2 t )
 {
   vec2 q = vec2(length(p.xz)-t.x,p.y);
@@ -101,7 +95,6 @@ float sdCylinder( vec3 p, vec3 c )
 {
   return length(p.xz-c.xy)-c.z;
 }
-
 
 float spinnyThing(vec3 samplePoint) {
 	samplePoint = rotateY(u_Time / 20.0) * samplePoint;
@@ -119,7 +112,6 @@ float spinnyThing(vec3 samplePoint) {
 	// Subtraction
 	float subtract2 = opS(cylinder2, opS(cylinder, sphereBox));
 	float subtract3 = opS(twoCylinder, subtract2);
-	// float subtract4 = opS(cylinder4, subtract3);
 	return subtract3;
 }
 
@@ -142,7 +134,6 @@ float opRep( vec3 p, vec3 c )
  */
 float sceneSDF(vec3 samplePoint) {
 	return opRep(samplePoint, vec3(3.0, 3.0, 5.0));
-// sdPlane(samplePoint, normalize(vec4(0.0,1.0,0.0,1.0)))
 }
 
 /**
@@ -208,12 +199,6 @@ void main() {
 	vec3 ref = vec3(u_View[2].x, u_View[2].y, u_View[2].z);
 	float len = length(ref - eye); 
 
-	// vec3 eye = -vec3(u_View[0].w, u_View[1].w, u_View[2].w);
-	// vec3 R = vec3(u_View * vec4(1.0, 0.0, 0.0, 0.0));
-	// vec3 U = vec3(u_View * vec4(0.0, 1.0, 0.0, 0.0));
-	// vec3 ref = vec3(u_View * vec4(0.0, 0.0, 1.0, 0.0));
-	// float len = length(ref-eye);
-
 ///////////////////
 	
 	float fov = 45.0;
@@ -225,27 +210,33 @@ void main() {
 
     float dist = shortestDistanceToSurface(eye, dir, MIN_DIST, MAX_DIST);
 
-	// // checking ray direction
-	// out_Col = abs(vec4(dir, 1.0));
-	// return;
-    
     if (dist > MAX_DIST - EPSILON) {
         // Didn't hit anything
 		vec3 color1 = vec3(130.0/255.0, 53.0/255.0 ,128.0/255.0);
 		vec3 color2 = vec3(90.0/255.0, 213.0/255.0, 240.0/255.0);
 
 		vec3 color = color1 * cos(u_Time / 20.0) + color2 * sin(u_Time / 20.0);
-		color = normalize(color);
+		color = normalize( abs( dir * cos(u_Time / 20.0)) + abs (color1 * sin(u_Time / 15.0)) );
 
         out_Col = vec4(color, 1.0);
 		return;
     }
 	vec3 p = eye + dir * dist;
     vec3 normal = estimateNormal(p);
-	out_Col = vec4(normal, 1.0);
 
-	vec3 eye2 = normalize(u_Eye);
-	// out_Col = vec4(fs_Pos.x,fs_Pos.y, 0.0, 1.0);
-	// testing out time
-    // out_Col = vec4(1.0 * sin(0.006 * u_Time), 0.0, 0.0, 1.0);
+	// Referenced Aman Sachan's matcap shading vertex shader
+	// https://github.com/Aman-Sachan-asach/Metaballic-Lava-Lamp/
+	vec3 reflected = reflect(dir, normal);
+	float x = reflected.x / (2.0 * sqrt(pow(reflected.x, 2.0) + 
+								       pow(reflected.y, 2.0) + 
+        							   pow(reflected.z + 1.0, 2.0))) + 0.5;
+	
+	float y = reflected.y / (2.0 * sqrt(pow(reflected.x, 2.0) + 
+								       pow(reflected.y, 2.0) + 
+        							   pow(reflected.z + 1.0, 2.0))) + 0.5;
+
+	vec2 texCoord = vec2(x,y);
+
+	vec4 color1 = texture(u_Texture, texCoord);
+	out_Col = color1;
 }

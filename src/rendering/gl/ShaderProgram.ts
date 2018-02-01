@@ -28,6 +28,7 @@ class ShaderProgram {
   unifUp:     WebGLUniformLocation;
   unifEye: WebGLUniformLocation;
   unifTime:   WebGLUniformLocation;
+  unifTexture: WebGLUniformLocation;
   
 
   constructor(shaders: Array<Shader>) {
@@ -50,6 +51,7 @@ class ShaderProgram {
     this.unifUp     = gl.getUniformLocation(this.prog, "u_Up");
     this.unifEye = gl.getUniformLocation(this.prog, "u_Eye");
     this.unifTime   = gl.getUniformLocation(this.prog, "u_Time");
+    this.unifTexture = gl.getUniformLocation(this.prog, "u_Texture");
   }
 
   use() {
@@ -60,6 +62,38 @@ class ShaderProgram {
   }
 
   // TODO: add functions to modify uniforms
+
+  loadImage(image: any) {
+    this.use();
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+ 
+    // Set the parameters so we don't need mips
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+ 
+    // Upload the image into the texture.
+    var mipLevel = 0;               // the largest mip
+    var internalFormat = gl.RGBA;   // format we want in the texture
+    var srcFormat = gl.RGBA;        // format of data we are supplying
+    var srcType = gl.UNSIGNED_BYTE  // type of data we are supplying
+    gl.texImage2D(gl.TEXTURE_2D,
+                  mipLevel,
+                  internalFormat,
+                  srcFormat,
+                  srcType,
+                  image);
+
+
+    // set which texture units to render with.
+    gl.uniform1i(this.unifTexture, 0);  // texture unit 0             
+ 
+    // add the texture to the array of textures.
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+  }
 
   setSize(width: number, height: number) {
     this.use();

@@ -6,6 +6,7 @@ import Camera from './Camera';
 import {setGL} from './globals';
 import ShaderProgram, {Shader} from './rendering/gl/ShaderProgram';
 
+
 // Define an object with application parameters and button callbacks
 // This will be referred to by dat.GUI's functions that add GUI elements.
 const controls = {
@@ -15,7 +16,13 @@ const controls = {
 let screenQuad: Square;
 let count = 0;
 
+
+let url = "../matcapflame.jpg";
+let img = new Image();
+img.src = url;
+
 function main() {
+
   // Initial display for framerate
   const stats = Stats();
   stats.setMode(0);
@@ -56,6 +63,8 @@ function main() {
     new Shader(gl.VERTEX_SHADER, require('./shaders/screenspace-vert.glsl')),
     new Shader(gl.FRAGMENT_SHADER, require('./shaders/raymarch-frag.glsl')),
   ]);
+
+  raymarchShader.loadImage(img);
 
   // This function will be called every frame
   function tick() {
@@ -104,4 +113,8 @@ function main() {
   tick();
 }
 
+function render()
+ {
+
+ }
 main();
