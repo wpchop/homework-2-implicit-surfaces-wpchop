@@ -1,4 +1,4 @@
-import {vec4, mat4} from 'gl-matrix';
+import {vec3, vec4, mat4} from 'gl-matrix';
 import Drawable from './Drawable';
 import {gl} from '../../globals';
 
@@ -25,6 +25,9 @@ class ShaderProgram {
 
   unifView: WebGLUniformLocation;
   unifScreen: WebGLUniformLocation;
+  unifUp: WebGLUniformLocation;
+  unifTarget: WebGLUniformLocation;
+  
 
   constructor(shaders: Array<Shader>) {
     this.prog = gl.createProgram();
@@ -43,6 +46,8 @@ class ShaderProgram {
     // TODO: add other attributes here
     this.unifView   = gl.getUniformLocation(this.prog, "u_View");
     this.unifScreen = gl.getUniformLocation(this.prog, "u_Screen");
+    this.unifUp     = gl.getUniformLocation(this.prog, "u_Up");
+    this.unifTarget = gl.getUniformLocation(this.prog, "u_Target");
   }
 
   use() {
@@ -58,6 +63,23 @@ class ShaderProgram {
     this.use();
     if (this.unifScreen != -1) {
       gl.uniform2f(this.unifScreen, width, height);
+    }
+  }
+
+  setCamera(up: vec3, target: vec3) {
+    this.use();
+    if (this.unifUp != - 1) {
+      gl.uniform3fv(this.unifUp, up);
+    }
+    if (this.unifTarget != -1) {
+      gl.uniform3fv(this.unifTarget, target);
+    }
+  }
+
+  setViewMatrix(view: mat4) {
+    this.use();
+    if (this.unifView != - 1) {
+      gl.uniformMatrix4fv(this.unifView, false, view);
     }
   }
 

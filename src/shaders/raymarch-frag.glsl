@@ -6,18 +6,37 @@ out vec4 out_Col;
 in vec4 fs_Pos;
 
 uniform vec2 u_Screen;
+uniform vec3 u_Target;
+uniform vec3 u_Up;
+uniform mat4 u_View;
 
 
 const int MAX_MARCHING_STEPS = 255;
 const float MIN_DIST = 0.0;
 const float MAX_DIST = 100.0;
 const float EPSILON = 0.0001;
+const vec3 LIGHT = vec3(0.0,2.0,1.0);
 
 /**
  * Signed distance function for a sphere centered at the origin with radius 1.0;
  */
 float sphereSDF(vec3 samplePoint) {
     return length(samplePoint) - 1.0;
+}
+
+float sdPlane( vec3 p, vec4 n )
+{
+  // n must be normalized
+  return dot(p,n.xyz) + n.w;
+}
+
+/**
+ * Union function, from IQ's blog:
+ * http://iquilezles.org/www/articles/distfunctions/distfunctions.htm
+ */
+float opU( float d1, float d2 )
+{
+    return min(d1,d2);
 }
 
 /**
@@ -28,10 +47,12 @@ float sphereSDF(vec3 samplePoint) {
  * negative indicating inside.
  */
 float sceneSDF(vec3 samplePoint) {
-    return sphereSDF(samplePoint);
+    return opU(sphereSDF(samplePoint), sdPlane(samplePoint, normalize(vec4(0.0,1.0,0.0,1.0))));
 }
 
 /**
+
+ * From https://www.shadertoy.com/view/llt3R4
  * Return the shortest distance from the eyepoint to the scene surface along
  * the marching direction. If no part of the surface is found between start and end,
  * return end.
@@ -56,65 +77,36 @@ float shortestDistanceToSurface(vec3 eye, vec3 marchingDirection, float start, f
     return end;
 }
 
-/**
- * Return the normalized direction to march in from the eye point for a single pixel.
- * 
- * fieldOfView: vertical field of view in degrees
- * size: resolution of the output image
- * fragCoord: the x,y coordinate of the pixel in the output image
- */
-vec3 rayDirection(float fov, vec2 uv) {
-	float width = u_Screen.x;
-	float height = u_Screen.y;
-	float aspect = width/height;
-
-	float px = uv.x * tan(radians(fov)) * aspect;
-	float py = uv.y * tan(radians(fov));
-	
-	vec3 ray_Origin = vec3(0.0); 
-	float z = height / tan(radians(fov) / 2.0);
-    vec3 ray_Dir = vec3(px, py, z) - ray_Origin;
-
-	return normalize(ray_Dir);
-
-	//
-    // vec2 xy = fragCoord - size / 2.0;
-    // float z = size.y / tan(radians(fov) / 2.0);
-    // return normalize(vec3(xy, -z));
-}
-
 void main() {
 	float width = u_Screen.x;
 	float height = u_Screen.y;
 	float aspect = width/height;
 
 	// TODO: make a Raymarcher!
+
 	float sx = fs_Pos.x;
 	float sy = fs_Pos.y;
 
+	// making camera
 	vec3 eye = vec3(0.0, 0.0, 3.0);
 	vec3 ref = vec3(0.0, 0.0, -1.0);
-	float len = length(ref - eye);
+	float len = length(ref - eye); 
 	vec3 U = vec3(0.0,1.0,0.0);
-	vec3 R = vec3(1.0,0.0,0.0);
-
+	vec3 R = cross(ref, U);
 	float fov = 45.0;
 	vec3 V = U * len * tan(radians(fov/2.0));
 	vec3 H = R * len * aspect * tan(radians(fov/2.0));
 
+	// Ray direction
 	vec3 dir = normalize(ref + sx * H + sy * V);
 
-	// out_Col = vec4(fs_Pos.x, fs_Pos.y, 0.0, 1.0);
-	// vec3 dir = rayDirection(45.0, vec2(u, v));
-    // vec3 eye = vec3(0.0, 0.0, 0.0);
     float dist = shortestDistanceToSurface(eye, dir, MIN_DIST, MAX_DIST);
     
     if (dist > MAX_DIST - EPSILON) {
         // Didn't hit anything
-        out_Col = vec4(dir, 1.0);
+        out_Col = vec4(0.0,0.0,0.0, 1.0);
 		return;
     }
     
     out_Col = vec4(1.0, 0.0, 0.0, 1.0);
-	// out_Col = vec4(normalize(dir), 1.0);
 }

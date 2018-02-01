@@ -67,6 +67,11 @@ function main() {
     // TODO: get / calculate relevant uniforms to send to shader here
     // TODO: send uniforms to shader
     raymarchShader.setSize(canvas.width, canvas.height);
+    console.log(camera.controls.up);
+    console.log(camera.controls.eye);
+    console.log(camera.controls.center);
+    // console.log(camera.controls.getCenter());
+    raymarchShader.setCamera(camera.controls.up, camera.controls.eye);
 
     // March!
     raymarchShader.draw(screenQuad);
