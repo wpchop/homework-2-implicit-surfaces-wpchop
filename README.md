@@ -1,6 +1,22 @@
 # CIS-566-Project-2
 https://github.com/CIS-566-2018/homework-2-ray-marching-implicit-surfaces
 
+## Wenli Zhao
+### Results
+- [demo**](https://wpchop.github.io/homework-2-implicit-surfaces-wpchop/)
+- ** The demo runs, but is missing the matcap textures. I wasn't able to figure out how to correctly load the image for deployment.
+- Instead, here is a screenshot:
+![](matcap.png)
+
+### Features
+- Blending: I used union, intersection and subtraction of cubes, spheres and cylinders to create an abstract cube-like shape. 
+- Animation: The shape spins around its y-axis and also has cylinder rivets cut out that rotate around the z axis to cut out from the cube.
+- Domain repetition: I used domain repetition to create a repeating field in the x, y, and z directions to give the scene a mesmerizing and kaleidoscopicm effect.
+- Background: To make the scene even more psychedelic, I made the background a function time that interpolates the normal ray direction with a bright blue color.
+- Shading: I used a matcap shading model. This involves importing a texture and sampling the texture to shade the object. The texture simulates lights and material textures without actually having to physically computing lights in the shader. The texture is sampled based on a function of the normals and eye position, which gives it a specular quality.
+- Camera: I also implemented a moveable camera that responds to mouse movements
+
+
 ## Objective
 - Gain more experience with GLSL Shader writing and raymarching
 - Experiment with procedural modeling and animation of scenes
